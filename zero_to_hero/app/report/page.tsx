@@ -21,7 +21,7 @@ const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY as any;
 const libraries: Libraries = ["places"];
 
 export default function ReportPage() {
-  const [user, setUser] = useState("") as any;
+  const [user, setUser] = useState<any>(null);
   const router = useRouter();
 
   const [reports, setReports] = useState<
@@ -133,7 +133,7 @@ export default function ReportPage() {
         1. The type of waste (e.g., plastic, paper, glass, metal, organic)
         2. An estimate of the quantity or amount (in kg or liters)
         3. Your confidence level in this assessment (as a percentage)
-        
+
         Respond in JSON format like this:
         {
           "wasteType": "type of waste",
@@ -146,11 +146,9 @@ export default function ReportPage() {
       const text = response.text();
 
       try {
-        // Remove Markdown-style code blocks if present
         const cleanedText = text.replace(/```json|```/g, "").trim();
         const parsedResult = JSON.parse(cleanedText);
 
-        // const parsedResult = JSON.parse(text);
         if (
           parsedResult.wasteType &&
           parsedResult.quantity &&
@@ -176,8 +174,10 @@ export default function ReportPage() {
       setVerificationStatus("failure");
     }
   };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (verificationStatus !== "success" || !user) {
       toast.error("Please verify the waste before submitting or log in.");
       return;
@@ -185,21 +185,21 @@ export default function ReportPage() {
 
     setIsSubmitting(true);
     try {
-      const report = (await createReport(
+      const report = await createReport(
         user.id,
         newReport.location,
         newReport.type,
         newReport.amount,
         preview || undefined,
         verificationResult ? JSON.stringify(verificationResult) : undefined
-      )) as any;
+      );
 
       const formattedReport = {
         id: report.id,
         location: report.location,
         wasteType: report.wasteType,
         amount: report.amount,
-        createdAt: report.createdAt.toISOString().split("T")[0],
+        createdAt: new Date(report.createdAt).toISOString().split("T")[0],
       };
 
       setReports([formattedReport, ...reports]);
@@ -226,14 +226,17 @@ export default function ReportPage() {
       if (email) {
         let user = await getUserByEmail(email);
         if (!user) {
-          user = await createUser(email, "Anonymous User");
+          const name = localStorage.getItem("userName") || "Anonymous User";
+          const password =
+            localStorage.getItem("userPassword") || "defaultpass";
+          user = await createUser(email, name, password);
         }
         setUser(user);
 
-        const recentReports = (await getRecentReports()) as any;
+        const recentReports = await getRecentReports();
         const formattedReports = recentReports?.map((report: any) => ({
           ...report,
-          createdAt: report.createdAt.toISOString().split("T")[0],
+          createdAt: new Date(report.createdAt).toISOString().split("T")[0],
         }));
         setReports(formattedReports);
       } else {

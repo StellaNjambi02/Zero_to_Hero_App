@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { Inter } from "next/font/google";
+import {
 
+  getUserByEmail,
+  getAvailableRewards,
+} from "@/utils/db/actions";
 import "./globals.css";
 
 import Header from "../components/Header";
@@ -18,7 +22,29 @@ export default function RootLayout({
 }>) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [totalEarnings, setTotalEarnings] = useState(0);
+  useEffect(() => {
+    const fetchTotalEarnings = async () => {
+      try {
+        const userEmail = localStorage.getItem("userEmail");
+        if (userEmail) {
+          const user = await getUserByEmail(userEmail);
+          console.log("user from layout", user);
 
+          if (user) {
+            const availableRewards = (await getAvailableRewards(
+              user.id
+            )) as any;
+            console.log("availableRewards from layout", availableRewards);
+            setTotalEarnings(availableRewards);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching total earnings:", error);
+      }
+    };
+
+    fetchTotalEarnings();
+  }, []);
   return (
     <html lang="en">
       <body className={inter.className}>
