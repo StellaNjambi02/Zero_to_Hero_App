@@ -231,6 +231,12 @@ export default function ReportPage() {
             localStorage.getItem("userPassword") || "defaultpass";
           user = await createUser(email, name, password);
         }
+
+        if (user.role === "waste collector") {
+          toast.error("Access denied. You are not allowed to report waste.");
+          router.push("/dashboard"); // or any other appropriate route
+          return;
+        }
         setUser(user);
 
         const recentReports = await getRecentReports();

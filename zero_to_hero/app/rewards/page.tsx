@@ -44,6 +44,13 @@ export default function RewardsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedRedeemType, setSelectedRedeemType] = useState<
+    "airtime" | "money" | null
+  >(null);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [pendingRewardId, setPendingRewardId] = useState<number | null>(null);
+  const [pendingAmount, setPendingAmount] = useState<number>(0);
 
   useEffect(() => {
     const fetchUserDataAndRewards = async () => {
@@ -59,16 +66,15 @@ export default function RewardsPage() {
             );
             setTransactions(fetchedTransactions as Transaction[]);
             const fetchedRewards = await getAvailableRewards(fetchedUser.id);
-            setRewards(fetchedRewards.filter((r) => r.cost > 0)); // Filter out rewards with 0 points
+            setRewards(fetchedRewards.filter((r) => r.cost > 0));
             const calculatedBalance = fetchedTransactions.reduce(
-              (acc, transaction) => {
-                return transaction.type.startsWith("earned")
+              (acc, transaction) =>
+                transaction.type.startsWith("earned")
                   ? acc + transaction.amount
-                  : acc - transaction.amount;
-              },
+                  : acc - transaction.amount,
               0
             );
-            setBalance(Math.max(calculatedBalance, 0)); // Ensure balance is never negative
+            setBalance(Math.max(calculatedBalance, 0));
           } else {
             toast.error("User not found. Please log in again.");
           }
@@ -86,73 +92,64 @@ export default function RewardsPage() {
     fetchUserDataAndRewards();
   }, []);
 
-  const handleRedeemReward = async (rewardId: number) => {
+  const handleRedeemReward = (rewardId: number) => {
     if (!user) {
       toast.error("Please log in to redeem rewards.");
       return;
     }
-
     const reward = rewards.find((r) => r.id === rewardId);
     if (reward && balance >= reward.cost && reward.cost > 0) {
-      try {
-        if (balance < reward.cost) {
-          toast.error("Insufficient balance to redeem this reward");
-          return;
-        }
-
-        // Update database
-        await redeemReward(user.id, rewardId);
-
-        // Create a new transaction record
-        await createTransaction(
-          user.id,
-          "redeemed",
-          reward.cost,
-          `Redeemed ${reward.name}`
-        );
-
-        // Refresh user data and rewards after redemption
-        await refreshUserData();
-
-        toast.success(`You have successfully redeemed: ${reward.name}`);
-      } catch (error) {
-        console.error("Error redeeming reward:", error);
-        toast.error("Failed to redeem reward. Please try again.");
-      }
+      setPendingRewardId(rewardId);
+      setPendingAmount(reward.cost);
+      setShowModal(true);
     } else {
       toast.error("Insufficient balance or invalid reward cost");
     }
   };
 
-  const handleRedeemAllPoints = async () => {
+  const handleRedeemAllPoints = () => {
     if (!user) {
       toast.error("Please log in to redeem points.");
       return;
     }
-
     if (balance > 0) {
-      try {
-        // Update database
-        await redeemReward(user.id, 0);
-
-        // Create a new transaction record
-        await createTransaction(
-          user.id,
-          "redeemed",
-          balance,
-          "Redeemed all points"
-        );
-
-        // Refresh user data and rewards after redemption
-        await refreshUserData();
-
-        toast.success(`You have successfully redeemed all your points!`);
-      } catch (error) {
-        console.error("Error redeeming all points:", error);
-        toast.error("Failed to redeem all points. Please try again.");
-      }
+      setPendingRewardId(0);
+      setPendingAmount(balance);
+      setShowModal(true);
     } else {
       toast.error("No points available to redeem");
+    }
+  };
+
+  const completeRedemption = async () => {
+    if (!user || !selectedRedeemType || phoneNumber.trim().length < 9) {
+      toast.error("Please complete all redemption details.");
+      return;
+    }
+
+    try {
+      await redeemReward(user.id, pendingRewardId!);
+      await createTransaction(
+        user.id,
+        "redeemed",
+        pendingAmount,
+        `Redeemed ${
+          pendingRewardId === 0 ? "all points" : "a reward"
+        } via ${selectedRedeemType}`
+      );
+
+      toast.success(
+        `Redemption requested! Check your phone (+254${phoneNumber}) for incoming transaction.`
+      );
+
+      setShowModal(false);
+      setSelectedRedeemType(null);
+      setPhoneNumber("");
+      setPendingRewardId(null);
+      await refreshUserData();
+    } catch (error) {
+      console.error("Error redeeming reward:", error);
+      toast.error("Failed to redeem reward. Please try again.");
     }
   };
 
@@ -163,18 +160,16 @@ export default function RewardsPage() {
         const fetchedTransactions = await getRewardTransactions(fetchedUser.id);
         setTransactions(fetchedTransactions as Transaction[]);
         const fetchedRewards = await getAvailableRewards(fetchedUser.id);
-        setRewards(fetchedRewards.filter((r) => r.cost > 0)); // Filter out rewards with 0 points
+        setRewards(fetchedRewards.filter((r) => r.cost > 0));
 
-        // Recalculate balance
         const calculatedBalance = fetchedTransactions.reduce(
-          (acc, transaction) => {
-            return transaction.type.startsWith("earned")
+          (acc, transaction) =>
+            transaction.type.startsWith("earned")
               ? acc + transaction.amount
-              : acc - transaction.amount;
-          },
+              : acc - transaction.amount,
           0
         );
-        setBalance(Math.max(calculatedBalance, 0)); // Ensure balance is never negative
+        setBalance(Math.max(calculatedBalance, 0));
       }
     }
   };
@@ -280,27 +275,14 @@ export default function RewardsPage() {
                   <p className="text-sm text-gray-500 mb-4">
                     {reward.collectionInfo}
                   </p>
-                  {reward.id === 0 ? (
-                    <div className="space-y-2">
-                      <Button
-                        onClick={handleRedeemAllPoints}
-                        className="w-full bg-green-500 hover:bg-green-600 text-white"
-                        disabled={balance === 0}
-                      >
-                        <Gift className="w-4 h-4 mr-2" />
-                        Redeem All Points
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      onClick={() => handleRedeemReward(reward.id)}
-                      className="w-full bg-green-500 hover:bg-green-600 text-white"
-                      disabled={balance < reward.cost}
-                    >
-                      <Gift className="w-4 h-4 mr-2" />
-                      Redeem Reward
-                    </Button>
-                  )}
+                  <Button
+                    onClick={() => handleRedeemReward(reward.id)}
+                    className="w-full bg-green-500 hover:bg-green-600 text-white"
+                    disabled={balance < reward.cost}
+                  >
+                    <Gift className="w-4 h-4 mr-2" />
+                    Redeem Reward
+                  </Button>
                 </div>
               ))
             ) : (
@@ -316,6 +298,72 @@ export default function RewardsPage() {
           </div>
         </div>
       </div>
+
+      {/* Redemption Modal */}
+      {showModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800">
+              Choose Redemption Type
+            </h3>
+            <div className="space-y-2 mb-4">
+              <Button
+                onClick={() => setSelectedRedeemType("airtime")}
+                className={`w-full ${
+                  selectedRedeemType === "airtime"
+                    ? "bg-green-600"
+                    : "bg-green-500"
+                } text-white`}
+              >
+                Airtime
+              </Button>
+              <Button
+                onClick={() => setSelectedRedeemType("money")}
+                className={`w-full ${
+                  selectedRedeemType === "money"
+                    ? "bg-green-600"
+                    : "bg-green-500"
+                } text-white`}
+              >
+                Money
+              </Button>
+            </div>
+            {selectedRedeemType && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number
+                </label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-700 text-sm">
+                    +254
+                  </span>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="flex-1 border-gray-300 rounded-r-md focus:ring-green-500 focus:border-green-500"
+                    placeholder="7XXXXXXXX"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                onClick={() => setShowModal(false)}
+                className="bg-gray-300 text-gray-800"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={completeRedemption}
+                className="bg-green-500 hover:bg-green-600 text-white"
+              >
+                Confirm
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

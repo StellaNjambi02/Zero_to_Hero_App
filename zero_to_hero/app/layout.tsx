@@ -2,11 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Inter } from "next/font/google";
-import {
-
-  getUserByEmail,
-  getAvailableRewards,
-} from "@/utils/db/actions";
+import { getUserByEmail, getAvailableRewards } from "@/utils/db/actions";
 import "./globals.css";
 
 import Header from "../components/Header";
