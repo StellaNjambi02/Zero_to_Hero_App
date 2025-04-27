@@ -310,9 +310,7 @@ export default function RewardsPage() {
               <Button
                 onClick={() => setSelectedRedeemType("airtime")}
                 className={`w-full ${
-                  selectedRedeemType === "airtime"
-                    ? "bg-green-600"
-                    : "bg-green-500"
+                  selectedRedeemType === "airtime" ? "bg-black" : "bg-green-500"
                 } text-white`}
               >
                 Airtime
@@ -320,9 +318,7 @@ export default function RewardsPage() {
               <Button
                 onClick={() => setSelectedRedeemType("money")}
                 className={`w-full ${
-                  selectedRedeemType === "money"
-                    ? "bg-green-600"
-                    : "bg-green-500"
+                  selectedRedeemType === "money" ? "bg-black" : "bg-green-500"
                 } text-white`}
               >
                 Money

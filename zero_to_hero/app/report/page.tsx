@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { MapPin, Upload, CheckCircle, Loader } from "lucide-react";
+import { MapPin, Upload, CheckCircle, Loader, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { StandaloneSearchBox, useJsApiLoader } from "@react-google-maps/api";
@@ -14,6 +14,7 @@ import {
   createReport,
   getRecentReports,
 } from "@/utils/db/actions";
+import Link from "next/link";
 
 const geminiApiKey = process.env.GEMINI_API_KEY as any;
 const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY as any;
@@ -23,6 +24,7 @@ const libraries: Libraries = ["places"];
 export default function ReportPage() {
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
   const [reports, setReports] = useState<
     Array<{
@@ -222,35 +224,76 @@ export default function ReportPage() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const email = localStorage.getItem("userEmail");
-      if (email) {
-        let user = await getUserByEmail(email);
-        if (!user) {
-          const name = localStorage.getItem("userName") || "Anonymous User";
-          const password =
-            localStorage.getItem("userPassword") || "defaultpass";
-          user = await createUser(email, name, password);
-        }
+      setLoading(true);
+      try {
+        const email = localStorage.getItem("userEmail");
+        if (email) {
+          let user = await getUserByEmail(email);
+          if (!user) {
+            const name = localStorage.getItem("userName") || "Anonymous User";
+            const password =
+              localStorage.getItem("userPassword") || "defaultpass";
+            user = await createUser(email, name, password);
+          }
 
-        if (user.role === "waste collector") {
-          toast.error("Access denied. You are not allowed to report waste.");
-          router.push("/dashboard"); // or any other appropriate route
-          return;
-        }
-        setUser(user);
+          if (user.role === "collector") {
+            return; // We'll handle this in the render
+          }
 
-        const recentReports = await getRecentReports();
-        const formattedReports = recentReports?.map((report: any) => ({
-          ...report,
-          createdAt: new Date(report.createdAt).toISOString().split("T")[0],
-        }));
-        setReports(formattedReports);
-      } else {
-        router.push("/report");
+          setUser(user);
+          const recentReports = await getRecentReports();
+          const formattedReports = recentReports?.map((report: any) => ({
+            ...report,
+            createdAt: new Date(report.createdAt).toISOString().split("T")[0],
+          }));
+          setReports(formattedReports);
+        } else {
+          router.push("/login");
+        }
+      } catch (error) {
+        console.error("Error checking user:", error);
+        toast.error("Failed to load user data. Please try again.");
+      } finally {
+        setLoading(false);
       }
     };
     checkUser();
   }, [router]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader className="animate-spin h-8 w-8 text-gray-500" />
+      </div>
+    );
+  }
+
+  if (!user || user.role === "collector") {
+    return (
+      <div className="p-8 max-w-4xl mx-auto text-center">
+        <h1 className="text-3xl font-semibold mb-6 text-gray-800">
+          Report Waste
+        </h1>
+        <div className="bg-white p-8 rounded-2xl shadow-lg">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
+            <MapPin className="h-6 w-6 text-yellow-600" />
+          </div>
+          <h2 className="text-xl font-medium text-gray-900 mb-2">
+            Access Restricted
+          </h2>
+          <p className="text-gray-600 mb-6">
+            You are signed up as a waste collector. Please proceed to the
+            collect waste tab to start collecting waste.
+          </p>
+          <Link href="/collect">
+            <Button className="bg-green-600 hover:bg-green-700">
+              Go to Collect Waste <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-4xl mx-auto">

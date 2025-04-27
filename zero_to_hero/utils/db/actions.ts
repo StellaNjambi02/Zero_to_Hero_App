@@ -28,23 +28,47 @@ import bcrypt from "bcryptjs";
 //   }
 // }
 
-export async function createUser(
-  email: string,
-  name: string,
-  password: string // Changed from password_Hash to password
-) {
-  try {
-    const passwordHash = await bcrypt.hash(password, 10);
-    const [user] = await db
-      .insert(Users)
-      .values({ email, name, passwordHash })
-      .returning()
-      .execute();
-    return user;
-  } catch (error) {
-    console.error("Error creating user:", error);
-    throw error; // Rethrow to handle in the calling function
-  }
+// export async function createUser(
+//   email: string,
+//   name: string,
+//   password: string // Changed from password_Hash to password
+// ) {
+//   try {
+//     const passwordHash = await bcrypt.hash(password, 10);
+//     const [user] = await db
+//       .insert(Users)
+//       .values({ email, name, passwordHash })
+//       .returning()
+//       .execute();
+//     return user;
+//   } catch (error) {
+//     console.error("Error creating user:", error);
+//     throw error; // Rethrow to handle in the calling function
+//   }
+// }
+
+export async function createUser({
+  email,
+  name,
+  password,
+  role,
+}: {
+  email: string;
+  name: string;
+  password: string;
+  role: string;
+}) {
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const [user] = await db
+    .insert(Users)
+    .values({
+      email,
+      name,
+      password_Hash: hashedPassword,
+      role,
+    })
+    .returning();
+  return user;
 }
 
 export async function getUserByEmail(email: string) {

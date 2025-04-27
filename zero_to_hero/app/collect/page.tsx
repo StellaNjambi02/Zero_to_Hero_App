@@ -5,7 +5,6 @@ import {
   MapPin,
   CheckCircle,
   Clock,
-  ArrowRight,
   Camera,
   Upload,
   Loader,
@@ -24,6 +23,7 @@ import {
   saveReward,
   saveCollectedWaste,
 } from "@/utils/db/actions";
+import Link from "next/link";
 
 const geminiApiKey = process.env.GEMINI_API_KEY as any;
 
@@ -49,6 +49,7 @@ export default function CollectPage() {
     id: number;
     email: string;
     name: string;
+    role: string;
   } | null>(null);
   const [selectedTask, setSelectedTask] = useState<CollectionTask | null>(null);
   const [verificationImage, setVerificationImage] = useState<string | null>(
@@ -75,15 +76,18 @@ export default function CollectPage() {
           const fetchedUser = await getUserByEmail(userEmail);
           if (fetchedUser) {
             setUser(fetchedUser);
+
+            // Only fetch tasks if user is a collector
+            if (fetchedUser.role === "collector") {
+              const fetchedTasks = await getWasteCollectionTasks();
+              setTasks(fetchedTasks as CollectionTask[]);
+            }
           } else {
             toast.error("User not found. Please log in again.");
           }
         } else {
           toast.error("User not logged in. Please log in.");
         }
-
-        const fetchedTasks = await getWasteCollectionTasks();
-        setTasks(fetchedTasks as CollectionTask[]);
       } catch (error) {
         console.error("Error fetching user and tasks:", error);
         toast.error("Failed to load user data and tasks. Please try again.");
@@ -265,6 +269,41 @@ export default function CollectPage() {
     currentPage * ITEMS_PER_PAGE
   );
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader className="animate-spin h-8 w-8 text-gray-500" />
+      </div>
+    );
+  }
+
+  if (user?.role !== "collector") {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto text-center">
+        <h1 className="text-3xl font-semibold mb-6 text-gray-800">
+          Waste Collection
+        </h1>
+        <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
+            <Trash2 className="h-6 w-6 text-yellow-600" />
+          </div>
+          <h2 className="text-xl font-medium text-gray-900 mb-2">
+            Access Restricted
+          </h2>
+          <p className="text-gray-600 mb-6">
+            You are signed up as a waste reporter. Please proceed to the report
+            waste tab to report waste.
+          </p>
+          <Link href="/report">
+            <Button className="bg-green-600 hover:bg-green-700">
+              Go to Report Waste
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
       <h1 className="text-3xl font-semibold mb-6 text-gray-800">
@@ -284,111 +323,103 @@ export default function CollectPage() {
         </Button>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader className="animate-spin h-8 w-8 text-gray-500" />
-        </div>
-      ) : (
-        <>
-          <div className="space-y-4">
-            {paginatedTasks.map((task) => (
-              <div
-                key={task.id}
-                className="bg-white p-4 rounded-lg shadow-sm border border-gray-200"
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h2 className="text-lg font-medium text-gray-800 flex items-center">
-                    <MapPin className="w-5 h-5 mr-2 text-gray-500" />
-                    {task.location}
-                  </h2>
-                  <StatusBadge status={task.status} />
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-sm text-gray-600 mb-3">
-                  <div className="flex items-center relative">
-                    <Trash2 className="w-4 h-4 mr-2 text-gray-500" />
-                    <span
-                      onMouseEnter={() => setHoveredWasteType(task.wasteType)}
-                      onMouseLeave={() => setHoveredWasteType(null)}
-                      className="cursor-pointer"
-                    >
-                      {task.wasteType.length > 8
-                        ? `${task.wasteType.slice(0, 8)}...`
-                        : task.wasteType}
-                    </span>
-                    {hoveredWasteType === task.wasteType && (
-                      <div className="absolute left-0 top-full mt-1 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10">
-                        {task.wasteType}
-                      </div>
-                    )}
+      <div className="space-y-4">
+        {paginatedTasks.map((task) => (
+          <div
+            key={task.id}
+            className="bg-white p-4 rounded-lg shadow-sm border border-gray-200"
+          >
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-medium text-gray-800 flex items-center">
+                <MapPin className="w-5 h-5 mr-2 text-gray-500" />
+                {task.location}
+              </h2>
+              <StatusBadge status={task.status} />
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-sm text-gray-600 mb-3">
+              <div className="flex items-center relative">
+                <Trash2 className="w-4 h-4 mr-2 text-gray-500" />
+                <span
+                  onMouseEnter={() => setHoveredWasteType(task.wasteType)}
+                  onMouseLeave={() => setHoveredWasteType(null)}
+                  className="cursor-pointer"
+                >
+                  {task.wasteType.length > 8
+                    ? `${task.wasteType.slice(0, 8)}...`
+                    : task.wasteType}
+                </span>
+                {hoveredWasteType === task.wasteType && (
+                  <div className="absolute left-0 top-full mt-1 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10">
+                    {task.wasteType}
                   </div>
-                  <div className="flex items-center">
-                    <Weight className="w-4 h-4 mr-2 text-gray-500" />
-                    {task.amount}
-                  </div>
-                  <div className="flex items-center">
-                    <Calendar className="w-4 h-4 mr-2 text-gray-500" />
-                    {task.date}
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  {task.status === "pending" && (
-                    <Button
-                      onClick={() => handleStatusChange(task.id, "in_progress")}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Start Collection
-                    </Button>
-                  )}
-                  {task.status === "in_progress" &&
-                    task.collectorId === user?.id && (
-                      <Button
-                        onClick={() => setSelectedTask(task)}
-                        variant="outline"
-                        size="sm"
-                      >
-                        Complete & Verify
-                      </Button>
-                    )}
-                  {task.status === "in_progress" &&
-                    task.collectorId !== user?.id && (
-                      <span className="text-yellow-600 text-sm font-medium">
-                        In progress by another collector
-                      </span>
-                    )}
-                  {task.status === "verified" && (
-                    <span className="text-green-600 text-sm font-medium">
-                      Reward Earned
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
-            ))}
+              <div className="flex items-center">
+                <Weight className="w-4 h-4 mr-2 text-gray-500" />
+                {task.amount}
+              </div>
+              <div className="flex items-center">
+                <Calendar className="w-4 h-4 mr-2 text-gray-500" />
+                {task.date}
+              </div>
+            </div>
+            <div className="flex justify-end">
+              {task.status === "pending" && (
+                <Button
+                  onClick={() => handleStatusChange(task.id, "in_progress")}
+                  variant="outline"
+                  size="sm"
+                >
+                  Start Collection
+                </Button>
+              )}
+              {task.status === "in_progress" &&
+                task.collectorId === user?.id && (
+                  <Button
+                    onClick={() => setSelectedTask(task)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Complete & Verify
+                  </Button>
+                )}
+              {task.status === "in_progress" &&
+                task.collectorId !== user?.id && (
+                  <span className="text-yellow-600 text-sm font-medium">
+                    In progress by another collector
+                  </span>
+                )}
+              {task.status === "verified" && (
+                <span className="text-green-600 text-sm font-medium">
+                  Reward Earned
+                </span>
+              )}
+            </div>
           </div>
+        ))}
+      </div>
 
-          <div className="mt-4 flex justify-center">
-            <Button
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="mr-2"
-            >
-              Previous
-            </Button>
-            <span className="mx-2 self-center">
-              Page {currentPage} of {pageCount}
-            </span>
-            <Button
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, pageCount))
-              }
-              disabled={currentPage === pageCount}
-              className="ml-2"
-            >
-              Next
-            </Button>
-          </div>
-        </>
-      )}
+      <div className="mt-4 flex justify-center">
+        <Button
+          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+          disabled={currentPage === 1}
+          className="mr-2"
+        >
+          Previous
+        </Button>
+        <span className="mx-2 self-center">
+          Page {currentPage} of {pageCount}
+        </span>
+        <Button
+          onClick={() =>
+            setCurrentPage((prev) => Math.min(prev + 1, pageCount))
+          }
+          disabled={currentPage === pageCount}
+          className="ml-2"
+        >
+          Next
+        </Button>
+      </div>
 
       {selectedTask && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -508,7 +539,11 @@ export default function CollectPage() {
   );
 }
 
-function StatusBadge({ status }: { status: CollectionTask["status"] }) {
+function StatusBadge({
+  status,
+}: {
+  status: "pending" | "in_progress" | "completed" | "verified";
+}) {
   const statusConfig = {
     pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock },
     in_progress: { color: "bg-blue-100 text-blue-800", icon: Trash2 },
