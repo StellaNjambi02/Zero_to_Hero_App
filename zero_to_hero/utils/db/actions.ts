@@ -9,13 +9,32 @@ import {
 } from "./schema";
 import { eq, sql, and, desc, ne } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+// export async function createUser(
+//   email: string,
+//   name: string,
+//   password_Hash: string
+// ) {
+//   try {
+//     const passwordHash = await bcrypt.hash(password_Hash, 10);
+//     const [user] = await db
+//       .insert(Users)
+//       .values({ email, name, passwordHash })
+//       .returning()
+//       .execute();
+//     return user;
+//   } catch (error) {
+//     console.error("Error creating user:", error);
+//     return null;
+//   }
+// }
+
 export async function createUser(
   email: string,
   name: string,
-  password_Hash: string
+  password: string // Changed from password_Hash to password
 ) {
   try {
-    const passwordHash = await bcrypt.hash(password_Hash, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
     const [user] = await db
       .insert(Users)
       .values({ email, name, passwordHash })
@@ -24,7 +43,7 @@ export async function createUser(
     return user;
   } catch (error) {
     console.error("Error creating user:", error);
-    return null;
+    throw error; // Rethrow to handle in the calling function
   }
 }
 
