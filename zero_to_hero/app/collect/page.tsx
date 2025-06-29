@@ -239,7 +239,7 @@ export default function CollectPage() {
         setIsAwaitingVerification(true);
         setVerificationStatus("success");
 
-        let counter = 30;
+        let counter = 15;
         const timer = setInterval(() => {
           counter--;
           setCountdown(counter);

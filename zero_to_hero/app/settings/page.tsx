@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { User, Mail, Phone, MapPin, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getUserByEmail } from "@/utils/db/actions";
+import { toast } from "react-hot-toast";
 
 type UserSettings = {
   name: string;
@@ -69,7 +70,8 @@ export default function SettingsPage() {
     e.preventDefault();
     localStorage.setItem("userSettings", JSON.stringify(settings));
     console.log("Updated settings:", settings);
-    alert("Settings updated successfully!");
+    // alert("Settings updated successfully!");
+    toast.success("Settings updated successfully!");
   };
 
   return (

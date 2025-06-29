@@ -57,6 +57,11 @@ export default function RootLayout({
           </div>
         </div>
         <Toaster />
+        <footer>
+          <p className="text-white text-center mt-[40px]">
+            copyright &copy; STELLA NJAMBI . All rights reserved.
+          </p>
+        </footer>
       </body>
     </html>
   );
