@@ -75,7 +75,13 @@ export default function CollectPage() {
         if (userEmail) {
           const fetchedUser = await getUserByEmail(userEmail);
           if (fetchedUser) {
-            setUser(fetchedUser);
+            // setUser(fetchedUser);
+            setUser({
+              id: fetchedUser.id,
+              email: fetchedUser.email,
+              name: fetchedUser.name,
+              role: fetchedUser.role || "default-role", // provide default if null
+            });
 
             // Only fetch tasks if user is a collector
             if (fetchedUser.role === "collector") {
